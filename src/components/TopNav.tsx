@@ -42,9 +42,12 @@ export function TopNav() {
     <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-md pt-[env(safe-area-inset-top)]">
       <div className="flex items-center justify-between gap-2 px-4 py-2.5 sm:px-6 sm:py-3 lg:px-8">
         <Link href="/" className="flex shrink-0 items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-black text-[12px] font-bold tracking-widest text-white">
-            AO
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="Info Ops"
+            className="h-8 w-8 rounded-lg bg-black object-contain p-0.5"
+          />
           <div className="hidden leading-tight sm:block">
             <div className="text-[15px] font-semibold tracking-tight">AGENCY</div>
             <div className="text-[12px] uppercase tracking-[0.18em] text-muted-foreground">
