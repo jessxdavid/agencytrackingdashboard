@@ -14,6 +14,13 @@ if (!url || !anon) {
 
 export const hasSupabase = true;
 
+// Anon-key only (no user auth). Disabling the GoTrue session bootstrap removes
+// the auth/lock init that otherwise delays the very first query by several
+// seconds on first page load.
 export const supabase = createClient(url, anon, {
-  realtime: { params: { eventsPerSecond: 5 } },
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+  },
 });
