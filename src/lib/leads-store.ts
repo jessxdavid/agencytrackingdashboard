@@ -4,8 +4,16 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "./supabase";
 import type { Lead, Stage } from "./types";
 
-// LIVE-only data layer. All reads/writes go to Supabase; realtime keeps the
-// whole team in sync. No local storage fallback.
+// LIVE data via Supabase. We sync with lightweight polling + refetch on focus
+// instead of a realtime WebSocket (the WS handshake was unreliable on some
+// networks and slowed first paint). Own-tab writes refresh instantly via a
+// custom event; other teammates see changes within the poll interval / on focus.
+
+const POLL_MS = 12000;
+
+function ping() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("leads:changed"));
+}
 
 export function useLeads() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -22,12 +30,19 @@ export function useLeads() {
 
   useEffect(() => {
     refresh();
-    const channel = supabase
-      .channel("leads-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, () => refresh())
-      .subscribe();
+    const onChange = () => refresh();
+    const onVis = () => {
+      if (!document.hidden) refresh();
+    };
+    window.addEventListener("leads:changed", onChange);
+    window.addEventListener("focus", onChange);
+    document.addEventListener("visibilitychange", onVis);
+    const id = window.setInterval(refresh, POLL_MS);
     return () => {
-      supabase.removeChannel(channel);
+      window.removeEventListener("leads:changed", onChange);
+      window.removeEventListener("focus", onChange);
+      document.removeEventListener("visibilitychange", onVis);
+      window.clearInterval(id);
     };
   }, [refresh]);
 
@@ -42,6 +57,7 @@ export function useLead(id: string) {
 export async function upsertLead(lead: Lead) {
   const { error } = await supabase.from("leads").upsert(lead);
   if (error) throw error;
+  ping();
 }
 
 export async function updateLead(id: string, patch: Partial<Lead>) {
@@ -50,11 +66,13 @@ export async function updateLead(id: string, patch: Partial<Lead>) {
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("id", id);
   if (error) throw error;
+  ping();
 }
 
 export async function deleteLead(id: string) {
   const { error } = await supabase.from("leads").delete().eq("id", id);
   if (error) throw error;
+  ping();
 }
 
 // Manual stage move; stamps key dates when crossing boundaries.
@@ -110,4 +128,5 @@ export async function addLead(input: Partial<Lead>): Promise<string> {
 
 export async function clearAllData() {
   await supabase.from("leads").delete().neq("id", "");
+  ping();
 }

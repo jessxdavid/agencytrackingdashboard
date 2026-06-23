@@ -20,9 +20,9 @@ import {
   Plus,
 } from "lucide-react";
 
-// Glassmorphism panel (dashboard only).
+// Glassmorphism panel (dashboard only). Mild backdrop blur keeps first paint cheap.
 const GLASS =
-  "rounded-xl border border-white/10 bg-white/[0.05] backdrop-blur-xl " +
+  "rounded-xl border border-white/10 bg-white/[0.05] backdrop-blur-md " +
   "shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_30px_-12px_rgba(0,0,0,0.6)]";
 
 export default function DashboardPage() {
@@ -50,11 +50,10 @@ export default function DashboardPage() {
 
   return (
     <>
-      {/* decorative backdrop so the glass panels read */}
+      {/* light decorative backdrop so the glass panels read (cheap to paint) */}
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute -left-32 top-10 h-[460px] w-[460px] rounded-full bg-brand/20 blur-[130px]" />
-        <div className="absolute right-0 top-1/3 h-[500px] w-[500px] rounded-full bg-info/15 blur-[140px]" />
-        <div className="absolute bottom-0 left-1/3 h-[420px] w-[420px] rounded-full bg-success/10 blur-[130px]" />
+        <div className="absolute -left-24 top-0 h-[360px] w-[360px] rounded-full bg-brand/15 blur-[90px]" />
+        <div className="absolute right-0 top-1/2 h-[380px] w-[380px] rounded-full bg-info/10 blur-[90px]" />
       </div>
 
       <main className="mx-auto w-full max-w-[1900px] space-y-5 px-4 py-6 sm:space-y-6 sm:px-8 sm:py-8 lg:px-12">
@@ -75,7 +74,7 @@ export default function DashboardPage() {
             </Link>
             <Link
               href="/pipeline"
-              className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3.5 py-2 text-[14px] text-muted-foreground backdrop-blur-xl transition hover:text-foreground"
+              className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3.5 py-2 text-[14px] text-muted-foreground transition hover:text-foreground"
             >
               Pipeline <ArrowUpRight className="h-4 w-4" />
             </Link>
