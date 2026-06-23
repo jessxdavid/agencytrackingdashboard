@@ -1,0 +1,12 @@
+# Don't upload research artifacts to Vercel
+Call Recording.mp4
+Transcript.txt
+frames/
+docs/
+New Call/
+node_modules
+.next
+.env*.local
+*.log
+*.mp4
+*.wav
