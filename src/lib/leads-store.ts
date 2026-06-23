@@ -19,6 +19,7 @@ function loadLocal(): Lead[] {
   try {
     return (JSON.parse(raw) as Lead[]).map((l) => ({
       ...l,
+      added_by: l.added_by ?? null,
       loom_links: l.loom_links ?? [],
       close_friends: l.close_friends ?? [],
       email_followups: l.email_followups ?? [],
@@ -122,7 +123,6 @@ export async function deleteLead(id: string) {
   saveLocal(all);
 }
 
-// Manual stage move; stamps key dates when crossing boundaries.
 export async function moveStage(id: string, stage: Stage) {
   const today = new Date().toISOString().slice(0, 10);
   const patch: Partial<Lead> = { stage };
@@ -149,6 +149,7 @@ export function newLeadDefaults(): Lead {
     niche: "",
     funnel: "",
     date: now.slice(0, 10),
+    added_by: null,
     stage: "possible_clients",
     loom_links: [],
     close_friends: [],

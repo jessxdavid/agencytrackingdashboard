@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { addLead, useLeads, deleteLead } from "@/lib/leads-store";
-import { STAGE_META, STAGE_TONES } from "@/lib/types";
+import { STAGE_META, STAGE_TONES, WHO_OPTIONS, type Who } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
 import { UserPlus, Check, Trash2, ArrowUpRight } from "lucide-react";
 
@@ -17,6 +17,7 @@ interface FormState {
   niche: string;
   funnel: string;
   date: string;
+  added_by: Who | "";
 }
 
 const EMPTY: FormState = {
@@ -27,6 +28,7 @@ const EMPTY: FormState = {
   niche: "",
   funnel: "",
   date: today(),
+  added_by: "",
 };
 
 export default function InputPage() {
@@ -55,8 +57,9 @@ export default function InputPage() {
         niche: form.niche.trim(),
         funnel: form.funnel.trim(),
         date: form.date || today(),
+        added_by: form.added_by || null,
       });
-      setForm({ ...EMPTY, date: form.date || today() });
+      setForm({ ...EMPTY, date: form.date || today(), added_by: form.added_by });
       setToast("Lead added to Possible Clients.");
       setTimeout(() => setToast(null), 3500);
     } finally {
@@ -95,7 +98,6 @@ export default function InputPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.3fr_1fr]">
-        {/* Form */}
         <form
           onSubmit={submit}
           className="rounded-xl border border-border bg-card p-4 shadow-subtle sm:p-6"
@@ -115,6 +117,18 @@ export default function InputPage() {
                 />
               </label>
             ))}
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[13px] font-medium text-muted-foreground">Added by</span>
+              <select value={form.added_by} onChange={(e) => set("added_by", e.target.value)}>
+                <option value="">Who added it?</option>
+                {WHO_OPTIONS.map((w) => (
+                  <option key={w} value={w}>
+                    {w}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
           {error && <p className="mt-4 text-[13px] text-brand">{error}</p>}
@@ -126,7 +140,7 @@ export default function InputPage() {
               className="inline-flex items-center gap-2 rounded-md bg-brand px-4 py-2.5 text-[15px] font-semibold text-brand-foreground transition hover:opacity-90 disabled:opacity-60"
             >
               <UserPlus className="h-4 w-4" />
-              {saving ? "Adding…" : "Add Lead"}
+              {saving ? "Adding..." : "Add Lead"}
             </button>
             {toast && (
               <span className="inline-flex items-center gap-1.5 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-[13px] font-medium text-success">
@@ -139,7 +153,6 @@ export default function InputPage() {
           </div>
         </form>
 
-        {/* Recently added */}
         <div className="rounded-xl border border-border bg-card p-4 shadow-subtle sm:p-6">
           <span className="section-eyebrow">Recently added</span>
           <div className="mt-4 flex flex-col divide-y divide-border">
@@ -148,6 +161,8 @@ export default function InputPage() {
             )}
             {recent.map((l) => {
               const tone = STAGE_TONES[STAGE_META[l.stage].tone];
+              const meta = [l.niche, l.funnel].filter(Boolean).join(" · ") || formatDate(l.date);
+              const byline = l.added_by ? meta + " · by " + l.added_by : meta;
               return (
                 <div key={l.id} className="flex items-center justify-between gap-3 py-3">
                   <Link href={`/leads/${l.id}`} className="min-w-0 flex-1">
@@ -158,9 +173,7 @@ export default function InputPage() {
                       <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase", tone.chip, tone.fg)}>
                         {STAGE_META[l.stage].label}
                       </span>
-                      <span className="truncate">
-                        {[l.niche, l.funnel].filter(Boolean).join(" · ") || formatDate(l.date)}
-                      </span>
+                      <span className="truncate">{byline}</span>
                     </div>
                   </Link>
                   <button

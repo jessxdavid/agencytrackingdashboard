@@ -42,6 +42,7 @@ export interface Lead {
   niche: string;
   funnel: string;
   date: string; // input date, YYYY-MM-DD
+  added_by: Who | null; // who added this lead
   // ---- pipeline ----
   stage: Stage;
   // ---- lead card sections ----
