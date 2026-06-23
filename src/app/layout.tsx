@@ -1,9 +1,10 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { TopNav } from "@/components/TopNav";
+import { Gate } from "@/components/Gate";
 
 export const metadata: Metadata = {
-  title: "Agency Outreach Dashboard",
+  title: "Agency Acquisition Dashboard",
   description: "Outreach pipeline for signing more agency clients",
   manifest: "/manifest.json",
 };
@@ -22,8 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="dark">
       <body className="min-h-screen bg-background text-foreground pb-[env(safe-area-inset-bottom)]">
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
-        <TopNav />
-        {children}
+        <Gate>
+          <TopNav />
+          {children}
+        </Gate>
       </body>
     </html>
   );
