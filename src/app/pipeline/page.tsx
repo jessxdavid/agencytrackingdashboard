@@ -71,7 +71,7 @@ export default function PipelinePage() {
         <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground/70">
           <Sparkles className="h-3 w-3" />
           <span>
-            Live: {leads.length} leads across {columns.length} stages. Drag a card, or use its stage menu.
+            Live: {leads.length} leads across {columns.length} stages. Drag a card to move it.
           </span>
         </div>
       </div>
@@ -170,12 +170,6 @@ function LeadCard({ lead, dragging }: { lead: Lead; dragging?: boolean }) {
   const tone = STAGE_TONES[STAGE_META[lead.stage].tone];
   const sub = [lead.niche, lead.funnel].filter(Boolean).join(" / ");
 
-  const stopDrag = (e: React.PointerEvent | React.MouseEvent) => e.stopPropagation();
-  const onMove = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const next = e.target.value as Stage;
-    if (next && next !== lead.stage) await moveStage(lead.id, next);
-  };
-
   return (
     <Link
       href={`/leads/${lead.id}`}
@@ -186,26 +180,8 @@ function LeadCard({ lead, dragging }: { lead: Lead; dragging?: boolean }) {
         tone.bg,
       )}
     >
-      <div className="mb-1 flex items-start justify-between gap-1.5">
-        <div className="min-w-0 truncate font-semibold text-foreground">
-          {lead.name || "Untitled lead"}
-        </div>
-        <select
-          aria-label="Move to stage"
-          value={lead.stage}
-          onChange={onMove}
-          onClick={stopDrag}
-          onPointerDown={stopDrag}
-          onMouseDown={stopDrag}
-          className="h-5 shrink-0 cursor-pointer rounded border border-border/60 bg-black/30 px-1 text-[10px] text-foreground/70 outline-none hover:border-border-strong"
-          title="Move to stage"
-        >
-          {pipelineColumns().map((s) => (
-            <option key={s} value={s}>
-              {STAGE_META[s].label}
-            </option>
-          ))}
-        </select>
+      <div className="mb-1 truncate font-semibold text-foreground">
+        {lead.name || "Untitled lead"}
       </div>
 
       {sub && <div className="truncate font-mono text-[11px] text-muted-foreground">{sub}</div>}

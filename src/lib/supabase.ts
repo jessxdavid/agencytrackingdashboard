@@ -1,14 +1,19 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Draft mode: if env is absent, fall back to local browser storage so the
-// dashboard runs without a backend. Set both vars to go live + shared.
+// LIVE-only. The app requires Supabase so the whole team shares one dataset.
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export const hasSupabase = Boolean(url && anon);
+if (!url || !anon) {
+  throw new Error(
+    "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY. " +
+      "This dashboard is live-only (shared team data). Set both in .env.local " +
+      "(local) and in the Vercel project settings (production), then restart.",
+  );
+}
 
-export const supabase = hasSupabase
-  ? createClient(url as string, anon as string, {
-      realtime: { params: { eventsPerSecond: 5 } },
-    })
-  : null;
+export const hasSupabase = true;
+
+export const supabase = createClient(url, anon, {
+  realtime: { params: { eventsPerSecond: 5 } },
+});

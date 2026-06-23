@@ -1,77 +1,33 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { supabase, hasSupabase } from "./supabase";
+import { supabase } from "./supabase";
 import type { Lead, Stage } from "./types";
-import { MOCK_LEADS } from "./mock-data";
 
-const LOCAL_KEY = "agency_outreach_v1";
-const SEED_DEMO = process.env.NEXT_PUBLIC_SEED_DEMO_DATA === "true";
-
-function loadLocal(): Lead[] {
-  if (typeof window === "undefined") return SEED_DEMO ? MOCK_LEADS : [];
-  const raw = window.localStorage.getItem(LOCAL_KEY);
-  if (!raw) {
-    const initial = SEED_DEMO ? MOCK_LEADS : [];
-    window.localStorage.setItem(LOCAL_KEY, JSON.stringify(initial));
-    return initial;
-  }
-  try {
-    return (JSON.parse(raw) as Lead[]).map((l) => ({
-      ...l,
-      added_by: l.added_by ?? null,
-      loom_links: l.loom_links ?? [],
-      close_friends: l.close_friends ?? [],
-      email_followups: l.email_followups ?? [],
-      dms: l.dms ?? [],
-      close_friends_stories: l.close_friends_stories ?? 0,
-    }));
-  } catch {
-    return SEED_DEMO ? MOCK_LEADS : [];
-  }
-}
-
-function saveLocal(leads: Lead[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(LOCAL_KEY, JSON.stringify(leads));
-  window.dispatchEvent(new Event("leads:changed"));
-}
+// LIVE-only data layer. All reads/writes go to Supabase; realtime keeps the
+// whole team in sync. No local storage fallback.
 
 export function useLeads() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    if (hasSupabase && supabase) {
-      const { data, error } = await supabase
-        .from("leads")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (!error && data) setLeads(data as Lead[]);
-    } else {
-      setLeads(loadLocal());
-    }
+    const { data, error } = await supabase
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (!error && data) setLeads(data as Lead[]);
     setLoading(false);
   }, []);
 
   useEffect(() => {
     refresh();
-    if (hasSupabase && supabase) {
-      const sb = supabase;
-      const channel = sb
-        .channel("leads-changes")
-        .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, () => refresh())
-        .subscribe();
-      return () => {
-        sb.removeChannel(channel);
-      };
-    }
-    const handler = () => refresh();
-    window.addEventListener("leads:changed", handler);
-    window.addEventListener("storage", handler);
+    const channel = supabase
+      .channel("leads-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, () => refresh())
+      .subscribe();
     return () => {
-      window.removeEventListener("leads:changed", handler);
-      window.removeEventListener("storage", handler);
+      supabase.removeChannel(channel);
     };
   }, [refresh]);
 
@@ -84,45 +40,24 @@ export function useLead(id: string) {
 }
 
 export async function upsertLead(lead: Lead) {
-  if (hasSupabase && supabase) {
-    const { error } = await supabase.from("leads").upsert(lead);
-    if (error) throw error;
-    return;
-  }
-  const all = loadLocal();
-  const idx = all.findIndex((l) => l.id === lead.id);
-  if (idx >= 0) all[idx] = { ...lead, updated_at: new Date().toISOString() };
-  else all.unshift(lead);
-  saveLocal(all);
+  const { error } = await supabase.from("leads").upsert(lead);
+  if (error) throw error;
 }
 
 export async function updateLead(id: string, patch: Partial<Lead>) {
-  if (hasSupabase && supabase) {
-    const { error } = await supabase
-      .from("leads")
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) throw error;
-    return;
-  }
-  const all = loadLocal();
-  const idx = all.findIndex((l) => l.id === id);
-  if (idx >= 0) {
-    all[idx] = { ...all[idx], ...patch, updated_at: new Date().toISOString() };
-    saveLocal(all);
-  }
+  const { error } = await supabase
+    .from("leads")
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
 }
 
 export async function deleteLead(id: string) {
-  if (hasSupabase && supabase) {
-    const { error } = await supabase.from("leads").delete().eq("id", id);
-    if (error) throw error;
-    return;
-  }
-  const all = loadLocal().filter((l) => l.id !== id);
-  saveLocal(all);
+  const { error } = await supabase.from("leads").delete().eq("id", id);
+  if (error) throw error;
 }
 
+// Manual stage move; stamps key dates when crossing boundaries.
 export async function moveStage(id: string, stage: Stage) {
   const today = new Date().toISOString().slice(0, 10);
   const patch: Partial<Lead> = { stage };
@@ -174,11 +109,5 @@ export async function addLead(input: Partial<Lead>): Promise<string> {
 }
 
 export async function clearAllData() {
-  if (hasSupabase && supabase) {
-    await supabase.from("leads").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  }
-  if (typeof window !== "undefined") {
-    window.localStorage.removeItem(LOCAL_KEY);
-    window.dispatchEvent(new Event("leads:changed"));
-  }
+  await supabase.from("leads").delete().neq("id", "");
 }
