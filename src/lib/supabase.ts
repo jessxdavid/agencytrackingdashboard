@@ -1,6 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
-
-// LIVE-only. The app requires Supabase so the whole team shares one dataset.
+// LIVE-only config. We talk to Supabase PostgREST directly over fetch (no
+// supabase-js client) because the library's auth/lock wrapper stalled the
+// first query by several seconds. Plain REST with the anon key is ~200ms.
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -13,14 +13,11 @@ if (!url || !anon) {
 }
 
 export const hasSupabase = true;
-
-// Anon-key only (no user auth). Disabling the GoTrue session bootstrap removes
-// the auth/lock init that otherwise delays the very first query by several
-// seconds on first page load.
-export const supabase = createClient(url, anon, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false,
-  },
-});
+export const SUPABASE_URL = url;
+export const SUPABASE_ANON = anon;
+export const REST = `${url}/rest/v1/leads`;
+export const sbHeaders: Record<string, string> = {
+  apikey: anon,
+  Authorization: `Bearer ${anon}`,
+  "Content-Type": "application/json",
+};

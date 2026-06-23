@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { supabase } from "./supabase";
+import { REST, sbHeaders } from "./supabase";
 import type { Lead, Stage } from "./types";
 
-// LIVE data via Supabase. We sync with lightweight polling + refetch on focus
-// instead of a realtime WebSocket (the WS handshake was unreliable on some
-// networks and slowed first paint). Own-tab writes refresh instantly via a
-// custom event; other teammates see changes within the poll interval / on focus.
+// LIVE data via Supabase PostgREST (direct fetch). Sync = poll + refetch on
+// focus; own-tab writes refresh instantly via a custom event.
 
 const POLL_MS = 12000;
 
@@ -15,17 +13,27 @@ function ping() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event("leads:changed"));
 }
 
+async function sbSelect(): Promise<Lead[]> {
+  const r = await fetch(`${REST}?select=*&order=created_at.desc`, {
+    headers: sbHeaders,
+    cache: "no-store",
+  });
+  if (!r.ok) throw new Error(`select failed: ${r.status}`);
+  return (await r.json()) as Lead[];
+}
+
 export function useLeads() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("leads")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (!error && data) setLeads(data as Lead[]);
-    setLoading(false);
+    try {
+      setLeads(await sbSelect());
+    } catch {
+      /* keep last good data */
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -55,27 +63,34 @@ export function useLead(id: string) {
 }
 
 export async function upsertLead(lead: Lead) {
-  const { error } = await supabase.from("leads").upsert(lead);
-  if (error) throw error;
+  const r = await fetch(REST, {
+    method: "POST",
+    headers: { ...sbHeaders, Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify(lead),
+  });
+  if (!r.ok) throw new Error(`upsert failed: ${r.status}`);
   ping();
 }
 
 export async function updateLead(id: string, patch: Partial<Lead>) {
-  const { error } = await supabase
-    .from("leads")
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq("id", id);
-  if (error) throw error;
+  const r = await fetch(`${REST}?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { ...sbHeaders, Prefer: "return=minimal" },
+    body: JSON.stringify({ ...patch, updated_at: new Date().toISOString() }),
+  });
+  if (!r.ok) throw new Error(`update failed: ${r.status}`);
   ping();
 }
 
 export async function deleteLead(id: string) {
-  const { error } = await supabase.from("leads").delete().eq("id", id);
-  if (error) throw error;
+  const r = await fetch(`${REST}?id=eq.${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { ...sbHeaders, Prefer: "return=minimal" },
+  });
+  if (!r.ok) throw new Error(`delete failed: ${r.status}`);
   ping();
 }
 
-// Manual stage move; stamps key dates when crossing boundaries.
 export async function moveStage(id: string, stage: Stage) {
   const today = new Date().toISOString().slice(0, 10);
   const patch: Partial<Lead> = { stage };
@@ -127,6 +142,6 @@ export async function addLead(input: Partial<Lead>): Promise<string> {
 }
 
 export async function clearAllData() {
-  await supabase.from("leads").delete().neq("id", "");
+  await fetch(`${REST}?id=neq.`, { method: "DELETE", headers: { ...sbHeaders, Prefer: "return=minimal" } });
   ping();
 }
