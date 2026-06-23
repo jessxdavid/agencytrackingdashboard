@@ -1,8 +1,10 @@
 // LIVE-only config. We talk to Supabase PostgREST directly over fetch (no
 // supabase-js client) because the library's auth/lock wrapper stalled the
 // first query by several seconds. Plain REST with the anon key is ~200ms.
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// .trim() guards against trailing whitespace/newlines in the env values
+// (a stray newline makes the header/URL an invalid fetch value).
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
 if (!url || !anon) {
   throw new Error(
