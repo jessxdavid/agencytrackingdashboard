@@ -1,217 +1,277 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useLeads } from "@/lib/leads-store";
-import { computeMetrics } from "@/lib/metrics";
-import { STAGES, STAGE_META, STAGE_TONES } from "@/lib/types";
+import { computeSummary, presetRange, type TimePreset, type FunnelStep } from "@/lib/metrics";
+import { STAGE_META, STAGE_TONES } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
-import {
-  Users,
-  Handshake,
-  MessageSquare,
-  CalendarCheck,
-  CheckCircle2,
-  Star,
-  Heart,
-  Send,
-  Mail,
-  Clapperboard,
-  ArrowUpRight,
-  Plus,
-} from "lucide-react";
+import { Sparkles, Users, CheckCircle2, Heart, Send, Mail, MailPlus, Clapperboard, Star } from "lucide-react";
 
-// Glassmorphism panel (dashboard only). Mild backdrop blur keeps first paint cheap.
-const GLASS =
-  "rounded-xl border border-white/10 bg-white/[0.05] backdrop-blur-md " +
-  "shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_30px_-12px_rgba(0,0,0,0.6)]";
+const PRESETS: { key: TimePreset; label: string }[] = [
+  { key: "daily", label: "Daily" },
+  { key: "weekly", label: "Weekly" },
+  { key: "biweekly", label: "Bi-weekly" },
+  { key: "30d", label: "30 Days" },
+  { key: "custom", label: "Custom" },
+];
 
 export default function DashboardPage() {
-  const { leads, loading } = useLeads();
-  const m = computeMetrics(leads);
+  const { leads } = useLeads();
+  const [preset, setPreset] = useState<TimePreset>("30d");
+  const [customStart, setCustomStart] = useState<string>("");
+  const [customEnd, setCustomEnd] = useState<string>("");
 
-  const kpis = [
-    { label: "Total Leads", value: m.total, icon: Users },
-    { label: "Qualified Partners", value: m.qualified, icon: Handshake },
-    { label: "Engaged", value: m.engaged, icon: MessageSquare },
-    { label: "Calls Booked", value: m.callOne + m.callTwo, icon: CalendarCheck },
-    { label: "Closed", value: m.closed, icon: CheckCircle2 },
-  ];
+  const range = useMemo(() => {
+    if (preset === "custom" && customStart && customEnd) {
+      return presetRange("custom", { start: new Date(customStart), end: new Date(customEnd + "T23:59:59") });
+    }
+    return presetRange(preset === "custom" ? "30d" : preset);
+  }, [preset, customStart, customEnd]);
 
-  const hardMetrics = [
-    { label: "Close Friends Outreach", value: m.closeFriendsOutreach, icon: Heart },
-    { label: "DM Outreach", value: m.dmOutreach, icon: Send },
-    { label: "Emails Sent", value: m.emailsSent, icon: Mail },
-    { label: "Follow-up Emails", value: m.emailFollowups, icon: Mail },
-    { label: "Looms", value: m.looms, icon: Clapperboard },
-  ];
-
-  const maxStage = Math.max(1, ...STAGES.map((s) => m.stageCounts[s]));
+  const s = useMemo(() => computeSummary(leads, range), [leads, range]);
   const recent = leads.slice(0, 6);
+
+  const outreach = [
+    { label: "Close Friends Outreach", value: s.closeFriendsOutreach, icon: <Heart className="h-4 w-4" /> },
+    { label: "DM Outreach", value: s.dmOutreach, icon: <Send className="h-4 w-4" /> },
+    { label: "Emails Sent", value: s.emailsSent, icon: <Mail className="h-4 w-4" /> },
+    { label: "Follow-up Emails", value: s.followupEmails, icon: <MailPlus className="h-4 w-4" /> },
+    { label: "Looms", value: s.looms, icon: <Clapperboard className="h-4 w-4" /> },
+    { label: "Close Friends Stories", value: s.stories, icon: <Star className="h-4 w-4" /> },
+  ];
 
   return (
     <>
-      {/* light decorative backdrop so the glass panels read (cheap to paint) */}
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute -left-24 top-0 h-[400px] w-[400px] rounded-full bg-brand/15 blur-[100px]" />
-        <div className="absolute right-0 top-1/2 h-[440px] w-[440px] rounded-full bg-info/10 blur-[110px]" />
-      </div>
-
-      {/* Snaps to one screen: fixed height = viewport minus the top nav, no scroll. */}
-      <main className="mx-auto flex w-full max-w-[2000px] flex-col gap-3 px-4 py-3 sm:gap-4 sm:px-8 sm:py-4 lg:h-[calc(100dvh-4.25rem)] lg:overflow-hidden lg:px-10">
-        {/* header */}
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
-          <div>
-            <span className="section-eyebrow">Overview</span>
-            <h1 className="mt-0.5 text-[20px] font-semibold tracking-tight sm:text-[26px]">
-              Agency Acquisition Dashboard
-            </h1>
+      {/* Hero */}
+      <section className="relative overflow-hidden border-b border-border">
+        <div className="pointer-events-none absolute inset-0 bg-grid bg-grid-fade opacity-30" />
+        <div className="pointer-events-none absolute inset-x-0 -top-24 h-48 bg-gradient-to-b from-brand/10 via-brand/5 to-transparent" />
+        <div className="relative mx-auto max-w-[1400px] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+            <span className="text-[13px] font-semibold uppercase tracking-[0.18em] text-amber-500/90">
+              Acquisition Dashboard
+            </span>
           </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/input"
-              className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3.5 py-2 text-[14px] font-semibold text-brand-foreground transition hover:opacity-90"
-            >
-              <Plus className="h-4 w-4" /> Add Lead
-            </Link>
-            <Link
-              href="/pipeline"
-              className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3.5 py-2 text-[14px] text-muted-foreground transition hover:text-foreground"
-            >
-              Pipeline <ArrowUpRight className="h-4 w-4" />
-            </Link>
+          <h1 className="text-[2rem] font-semibold leading-[1.05] tracking-[-0.03em] md:text-[2.5rem]">
+            What is in the pipeline.
+          </h1>
+          <p className="mt-3 max-w-xl text-[16px] leading-relaxed text-muted-foreground">
+            A live summary of every lead, where they sit in the funnel, and the outreach behind them.
+          </p>
+          <div className="mt-5 flex items-center gap-1.5 text-[13px] text-muted-foreground/70">
+            <Sparkles className="h-3 w-3" />
+            <span>Updates live as the team works the pipeline.</span>
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            {PRESETS.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => setPreset(p.key)}
+                className={cn(
+                  "rounded-md border px-3 py-1.5 text-[14px] font-medium transition",
+                  preset === p.key
+                    ? "border-border-strong bg-surface-2 text-foreground"
+                    : "border-border bg-surface-1 text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+            {preset === "custom" && (
+              <div className="ml-1 flex items-center gap-1.5">
+                <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="text-[14px]" />
+                <span className="text-[14px] text-muted-foreground">to</span>
+                <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="text-[14px]" />
+              </div>
+            )}
           </div>
         </div>
+      </section>
 
-        {loading ? (
-          <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className={cn("animate-pulse", GLASS)} />
+      <main className="mx-auto max-w-[1400px] space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-10 lg:px-8">
+        {/* Headline cards */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <SplitCard label="Total Leads" subtitle="In the pipeline (window)" value={s.total} icon={<Users className="h-4 w-4" />} accent="info" />
+          <SplitCard label="Active Leads" subtitle="Not closed, lost or no-show" value={Math.max(0, s.active)} icon={<Sparkles className="h-4 w-4" />} accent="info" />
+          <SplitCard label="Closed Deals" subtitle="Signed in window" value={s.closeDeal} icon={<CheckCircle2 className="h-4 w-4" />} accent="brand" />
+        </div>
+
+        {/* Hard metrics — pipeline stage rollup */}
+        <section className="rounded-xl border border-border bg-card p-4 shadow-subtle sm:p-6">
+          <SectionHeader title="Pipeline breakdown" hint="Leads per stage in the selected window" />
+          <div className="grid grid-cols-2 gap-x-8 gap-y-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            <Metric letter="A" label="Possible Clients" value={s.possible} />
+            <Metric letter="B" label="Qualified Partner" value={s.qualified} />
+            <Metric letter="C" label="Loom Made" value={s.loom} />
+            <Metric letter="D" label="Outreach Sent" value={s.outreach} />
+            <Metric letter="E" label="Engaged" value={s.engaged} />
+            <Metric letter="F" label="Calls Booked" value={s.callsBooked} highlight />
+            <Metric letter="G" label="Follow Up" value={s.followUp} />
+            <Metric letter="H" label="No Show" value={s.noShow} />
+            <Metric letter="I" label="No Close" value={s.noClose} />
+            <Metric letter="J" label="Close Deal" value={s.closeDeal} highlight />
+            <Metric letter="K" label="Close Friends Stories" value={s.stories} />
+          </div>
+        </section>
+
+        {/* Acquisition funnel across all 12 stages */}
+        <section className="rounded-xl border border-border bg-card p-4 shadow-subtle sm:p-6">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <div className="flex items-baseline gap-3">
+              <span className="section-eyebrow">Acquisition funnel</span>
+              <span className="text-[13px] text-muted-foreground/70">Every stage of the pipeline - click a stage to open the board</span>
+            </div>
+            <span className="shrink-0 rounded-full border border-brand/30 bg-brand/10 px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wider text-brand">
+              Pipeline
+            </span>
+          </div>
+          <StageFunnel funnel={s.funnel} />
+        </section>
+
+        {/* Outreach activity totals */}
+        <section className="rounded-xl border border-border bg-card p-4 shadow-subtle sm:p-6">
+          <SectionHeader title="Outreach activity" hint="Totals in the selected window" />
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+            {outreach.map((o) => (
+              <BigStat key={o.label} label={o.label} value={String(o.value)} icon={o.icon} />
             ))}
           </div>
-        ) : (
-          <>
-            {/* KPIs */}
-            <section className="grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {kpis.map((k) => (
-                <div key={k.label} className={cn(GLASS, "p-4")}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[12px] uppercase tracking-wider text-muted-foreground">
-                      {k.label}
-                    </span>
-                    <k.icon className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="mt-2 font-mono text-[34px] font-semibold leading-none tabular-nums">
-                    {k.value}
-                  </div>
-                </div>
-              ))}
-            </section>
+        </section>
 
-            {/* Hard metrics */}
-            <section className={cn(GLASS, "shrink-0 p-4")}>
-              <span className="section-eyebrow">Hard Metrics</span>
-              <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_2.4fr]">
-                <div className="flex items-center justify-between gap-4 rounded-lg border border-white/10 bg-white/[0.04] px-5 py-3">
-                  <div className="flex items-center gap-2 text-[12px] uppercase tracking-wider text-muted-foreground">
-                    <Star className="h-4 w-4 text-warning" /> Close Friends Stories
-                  </div>
-                  <div className="font-mono text-[42px] font-bold leading-none tabular-nums">
-                    {m.closeFriendsStories}
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
-                  {hardMetrics.map((h) => (
-                    <div key={h.label} className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
-                      <h.icon className="h-4 w-4 text-muted-foreground" />
-                      <div className="mt-2 font-mono text-[24px] font-semibold leading-none tabular-nums">
-                        {h.value}
-                      </div>
-                      <div className="mt-1 text-[10px] uppercase leading-tight tracking-wider text-muted-foreground">
-                        {h.label}
+        {/* Recent leads */}
+        <section className="rounded-xl border border-border bg-card p-4 shadow-subtle sm:p-6">
+          <div className="mb-5 flex items-center justify-between">
+            <SectionHeader title="Recent leads" hint="Latest additions" noMargin />
+            <Link href="/pipeline" className="text-[14px] font-medium text-muted-foreground transition hover:text-foreground">
+              View pipeline
+            </Link>
+          </div>
+          {recent.length === 0 ? (
+            <p className="text-[15px] text-muted-foreground">No leads yet.</p>
+          ) : (
+            <div className="flex flex-col divide-y divide-border">
+              {recent.map((l) => {
+                const tone = STAGE_TONES[STAGE_META[l.stage].tone];
+                return (
+                  <Link key={l.id} href={`/leads/${l.id}`} className="flex items-center justify-between gap-3 py-3 transition hover:opacity-80">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[15px] font-medium">{l.name || "Untitled"}</div>
+                      <div className="mt-0.5 truncate text-[12px] text-muted-foreground">
+                        {[l.niche, l.funnel].filter(Boolean).join(" / ") || "-"}
+                        {l.added_by ? " / by " + l.added_by : ""}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* Bottom row fills the remaining height */}
-            <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
-              {/* Pipeline distribution */}
-              <section className={cn(GLASS, "flex flex-col overflow-hidden p-4")}>
-                <div className="flex shrink-0 items-center justify-between">
-                  <span className="section-eyebrow">Pipeline Distribution</span>
-                  <Link href="/pipeline" className="text-[12px] text-muted-foreground hover:text-foreground">
-                    Open
+                    <span className={cn("shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase", tone.chip, tone.fg)}>
+                      {STAGE_META[l.stage].label}
+                    </span>
+                    <span className="hidden w-[120px] shrink-0 text-right font-mono text-[12px] text-muted-foreground sm:block">
+                      {formatDate(l.date)}
+                    </span>
                   </Link>
-                </div>
-                <div className="mt-3 grid flex-1 grid-cols-1 content-between gap-x-8 gap-y-2 sm:grid-cols-2">
-                  {STAGES.map((s) => {
-                    const tone = STAGE_TONES[STAGE_META[s].tone];
-                    const count = m.stageCounts[s];
-                    return (
-                      <Link key={s} href="/pipeline" className="flex items-center gap-2.5">
-                        <span className="w-[120px] shrink-0 truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                          {STAGE_META[s].label}
-                        </span>
-                        <div className="relative h-4 flex-1 overflow-hidden rounded bg-white/[0.06]">
-                          <div
-                            className={cn("absolute inset-y-0 left-0 rounded", tone.bg)}
-                            style={{
-                              width: `${Math.round((count / maxStage) * 100)}%`,
-                              minWidth: count ? "6px" : "0",
-                            }}
-                          />
-                        </div>
-                        <span className={cn("w-5 shrink-0 text-right font-mono text-[12px] tabular-nums", tone.fg)}>
-                          {count}
-                        </span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </section>
-
-              {/* Recent leads */}
-              <section className={cn(GLASS, "flex flex-col overflow-hidden p-4")}>
-                <span className="section-eyebrow shrink-0">Recent Leads</span>
-                {recent.length === 0 ? (
-                  <div className="flex flex-1 items-center justify-center text-[14px] text-muted-foreground">
-                    No leads yet.
-                  </div>
-                ) : (
-                  <div className="mt-2 flex flex-1 flex-col justify-between divide-y divide-white/[0.06]">
-                    {recent.map((l) => {
-                      const tone = STAGE_TONES[STAGE_META[l.stage].tone];
-                      return (
-                        <Link
-                          key={l.id}
-                          href={`/leads/${l.id}`}
-                          className="flex flex-1 items-center justify-between gap-3 py-1 transition hover:opacity-80"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-[14px] font-medium">{l.name || "Untitled"}</div>
-                            <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                              {[l.niche, l.funnel].filter(Boolean).join(" / ") || "-"}
-                              {l.added_by ? " / by " + l.added_by : ""}
-                            </div>
-                          </div>
-                          <span className={cn("shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase", tone.chip, tone.fg)}>
-                            {STAGE_META[l.stage].label}
-                          </span>
-                          <span className="hidden w-[100px] shrink-0 text-right text-[11px] text-muted-foreground sm:block">
-                            {formatDate(l.date)}
-                          </span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
+                );
+              })}
             </div>
-          </>
-        )}
+          )}
+        </section>
       </main>
     </>
+  );
+}
+
+function SectionHeader({ title, hint, noMargin }: { title: string; hint?: string; noMargin?: boolean }) {
+  return (
+    <div className={cn("flex items-center justify-between gap-3", !noMargin && "mb-5")}>
+      <div className="flex items-baseline gap-3">
+        <span className="section-eyebrow">{title}</span>
+        {hint && <span className="text-[13px] text-muted-foreground/70">{hint}</span>}
+      </div>
+    </div>
+  );
+}
+
+function Metric({ letter, label, value, highlight }: { letter: string; label: string; value: number | string; highlight?: boolean }) {
+  return (
+    <div>
+      <div className="mb-1 flex items-center gap-1.5 text-[12px] uppercase tracking-[0.12em] text-muted-foreground">
+        <span className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[11px] text-muted-foreground">{letter}</span>
+        <span>{label}</span>
+      </div>
+      <div className={cn("break-words font-mono text-[20px] font-medium tabular-nums sm:text-[24px]", highlight && "text-success")}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function SplitCard({
+  label, subtitle, value, icon, accent,
+}: { label: string; subtitle: string; value: number; icon: React.ReactNode; accent: "info" | "brand" }) {
+  return (
+    <div className="relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-subtle">
+      <div className={cn("pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full blur-3xl", accent === "info" ? "bg-info/15" : "bg-brand/15")} />
+      <div className={cn("mb-2 flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-[0.18em]", accent === "info" ? "text-info" : "text-brand")}>
+        {icon}
+        {label}
+      </div>
+      <div className="font-mono text-[48px] font-semibold leading-none tabular-nums">{value}</div>
+      <div className="mt-2 text-[14px] text-muted-foreground">{subtitle}</div>
+    </div>
+  );
+}
+
+function BigStat({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-border bg-surface-1 p-5">
+      <div className="mb-1.5 flex items-center gap-1.5 text-[12px] uppercase tracking-[0.12em] text-muted-foreground">
+        {icon && <span className="opacity-70">{icon}</span>}
+        <span className="truncate">{label}</span>
+      </div>
+      <div className="font-mono text-[28px] font-medium tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function StageFunnel({ funnel }: { funnel: FunnelStep[] }) {
+  const top = funnel[0]?.count ?? 0;
+  if (top === 0) {
+    return <p className="py-6 text-center text-[15px] text-muted-foreground">No leads in the selected window.</p>;
+  }
+  return (
+    <div className="-mx-2 overflow-x-auto pb-2">
+      <div className="mx-2 min-w-[980px] space-y-4">
+        <div className="flex h-32 items-stretch gap-1">
+          {funnel.map((step) => {
+            const tone = STAGE_TONES[STAGE_META[step.key].tone];
+            const heightPct = Math.max(step.pct_of_top, step.count ? 16 : 6);
+            return (
+              <Link key={step.key} href="/pipeline" className="group relative flex flex-1 flex-col items-center justify-end">
+                <div
+                  className={cn(
+                    "relative flex w-full items-center justify-center overflow-hidden rounded-md border border-border transition group-hover:border-border-strong",
+                    step.count ? tone.bg : "bg-surface-2",
+                  )}
+                  style={{ height: `${heightPct}%`, minHeight: 24 }}
+                >
+                  <span className={cn("relative font-mono text-[16px] font-semibold tabular-nums", step.count && tone.fg)}>
+                    {step.count}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+        <div className="flex items-start gap-1">
+          {funnel.map((step) => (
+            <div key={step.key} className="flex flex-1 flex-col items-center px-0.5 text-center">
+              <div className="text-[10px] font-medium uppercase leading-tight tracking-wide text-muted-foreground">{step.label}</div>
+              <div className="mt-1 font-mono text-[11px] tabular-nums text-muted-foreground/80">{step.pct_of_top}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
