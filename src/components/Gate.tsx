@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { Delete, Lock } from "lucide-react";
 
 // Casual-access gate. The passcode lives in NEXT_PUBLIC_APP_PASSCODE (default
-// "1234"). Note: this only hides the UI; the data API is still reachable with
+// "0000"). Note: this only hides the UI; the data API is still reachable with
 // the public anon key, so it is a deterrent, not hard security.
-const CODE = (process.env.NEXT_PUBLIC_APP_PASSCODE || "1234").trim();
+const CODE = (process.env.NEXT_PUBLIC_APP_PASSCODE || "0000").trim();
 const KEY = "aod_unlocked_v1";
 
 export function Gate({ children }: { children: React.ReactNode }) {
@@ -64,7 +64,6 @@ export function Gate({ children }: { children: React.ReactNode }) {
         Agency Acquisition
       </p>
 
-      {/* dots */}
       <div className={err ? "mt-6 flex gap-4 animate-pulse" : "mt-6 flex gap-4"}>
         {[0, 1, 2, 3].map((i) => (
           <span
@@ -81,7 +80,6 @@ export function Gate({ children }: { children: React.ReactNode }) {
         ))}
       </div>
 
-      {/* keypad */}
       <div className="mt-8 grid grid-cols-3 gap-3">
         {keys.map((k) => (
           <button
