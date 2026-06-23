@@ -1,10 +1,17 @@
 // LIVE-only config. We talk to Supabase PostgREST directly over fetch (no
-// supabase-js client) because the library's auth/lock wrapper stalled the
-// first query by several seconds. Plain REST with the anon key is ~200ms.
-// .trim() guards against trailing whitespace/newlines in the env values
-// (a stray newline makes the header/URL an invalid fetch value).
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+// supabase-js client). The env values are sanitized defensively: pasting into
+// hosting dashboards can introduce stray whitespace/newlines (and even a
+// duplicated key), and a newline inside a header value makes fetch throw
+// "Invalid value". We extract the first clean URL + JWT so it always works.
+const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const rawAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+const urlMatch = rawUrl.match(/https?:\/\/[^\s"']+\.supabase\.co/i);
+const url = (urlMatch ? urlMatch[0] : rawUrl.trim()).replace(/\/+$/, "");
+
+// A Supabase anon key is a JWT: three base64url segments separated by dots.
+const jwtMatch = rawAnon.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/);
+const anon = jwtMatch ? jwtMatch[0] : rawAnon.replace(/\s+/g, "");
 
 if (!url || !anon) {
   throw new Error(
